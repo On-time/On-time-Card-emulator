@@ -10,7 +10,7 @@ import android.os.Bundle;
 public class MyHostApduService  extends HostApduService {
     @Override
     public byte[] processCommandApdu(byte[] commandApdu, Bundle extras) {
-        return new byte[0];
+        return new byte[] { (byte)0x90 };
     }
 
     @Override
