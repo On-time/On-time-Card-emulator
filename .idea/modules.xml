@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/On-timecardemulator.iml" filepath="$PROJECT_DIR$/On-timecardemulator.iml" />
+      <module fileurl="file://$PROJECT_DIR$/On-time-Card-emulator.iml" filepath="$PROJECT_DIR$/On-time-Card-emulator.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>
   </component>
