@@ -2,9 +2,18 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <EditTextPreference
-        android:defaultValue="57121099-6"
         android:selectAllOnFocus="true"
         android:singleLine="true"
         android:title="Student ID"
         android:key="et_pr_ID" />
+    <EditTextPreference
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="Pass"
+        android:key="et_pr_Pass" />
+    <EditTextPreference
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="tel num"
+        android:key="edit_text_preference_1" />
 </PreferenceScreen>
