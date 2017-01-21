@@ -3,33 +3,44 @@ package net.aliveplex.alive.on_timecardemulator;
 import android.Manifest;
 import android.app.Dialog;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.AsyncTask;
 import android.preference.PreferenceManager;
-import android.provider.SyncStateContract;
+import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.telephony.TelephonyManager;
 import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.provider.Settings.Secure;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
+
+import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+
+import org.apache.http.impl.client.HttpClientBuilder;
+
+import java.io.IOException;
+import java.net.URLConnection;
+import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity implements ActivityCompat.OnRequestPermissionsResultCallback {
     SharedPreferences sp;
-    final int MY_PERMISSIONS_REQUEST_READ_PHONE_STATE = 3;
-    String PNumber;
+    boolean InternetAccess = true;
     Dialog login,regis;
     EditText etUser,etPass,etUserR,etPassR;
     Button butLogin,butClear,butRegis,butClearR;
@@ -37,9 +48,8 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_main);
-        checkPermission();
-        final SharedPreferences.Editor spEdit = sp.edit();
         login = new Dialog(MainActivity.this);
         login.setContentView(R.layout.login_layout);
         login.setTitle("Login");
@@ -57,17 +67,28 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         butRegis = (Button) regis.findViewById(R.id.butRegis);
         butClearR = (Button) regis.findViewById(R.id.butClearR);
 
+        // get sp with default name, this default name is shared across app
+        sp = PreferenceManager.getDefaultSharedPreferences(this);
+        final SharedPreferences.Editor spEdit = sp.edit();
+
+        String androidId = Secure.getString(getContentResolver(), Secure.ANDROID_ID);
+        spEdit.putString(Constant.AndroidIdSpKey, androidId);
+        spEdit.apply();
+        Log.d("Android Id", "Android Id is " + androidId);
+
+        checkPermission();
+
         butLogin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 try {
                     //เช็คว่า ถ้าค่าว่างให้ใส่ใหม่ ถ้าไม่ว่างค่อยส่งไปยัง server
-                    if(etUser.getText().toString().equals(sp.getString("et_pr_ID","SuperAdmin"))&&etPass.getText().toString().equals(sp.getString("et_pr_Pass","123456")))
+                    if(etUser.getText().toString().equals(sp.getString(Constant.UsernameSpKey,"SuperAdmin"))&&etPass.getText().toString().equals(sp.getString(Constant.PasswordSpKey,"123456")))
                     {
                         //แก้เก็บเฉพาะ รหัส นศ กับ เบอร์โทรเก็บไว้
                         login.dismiss();
                     }
-                    else{
+                    else {
                         Toast.makeText(MainActivity.this,"UserName or password Error",Toast.LENGTH_SHORT).show();
                     }
                 }
@@ -80,10 +101,14 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
             @Override
             public void onClick(View v) {
                 try {
-                    spEdit.putString("et_pr_ID", etUserR.getText().toString());
-                    spEdit.putString("et_pr_Pass", etPassR.getText().toString());
-                    spEdit.putString("et_pr_Tel", PNumber);
-                    spEdit.commit();
+                    spEdit.putString(Constant.UsernameSpKey, etUserR.getText().toString());
+                    spEdit.putString(Constant.PasswordSpKey, etPassR.getText().toString());
+                    spEdit.apply();
+
+                    if (!InternetAccess) {
+                        finish();
+                    }
+
                 }
                 catch(Exception e){
                     Toast.makeText(MainActivity.this,"Error "+e.getMessage(),Toast.LENGTH_SHORT).show();
@@ -91,71 +116,83 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
             }
         });
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Debug purpose
+        // sendRegisterRequest(this, "SuperAdmin", "123456", "555455545");
+    }
+
+
     void checkPermission(){
-        if (ContextCompat.checkSelfPermission(MainActivity.this,
-                Manifest.permission.READ_PHONE_STATE)
-                != PackageManager.PERMISSION_GRANTED) {
-
+        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
+            InternetAccess = false;
+            Log.d("Internet", "No internet permission");
             // Should we show an explanation?
-            if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this,
-                    Manifest.permission.READ_PHONE_STATE)) {
-                // Show an explanation to the user *asynchronously* -- don't block
-                // this thread waiting for the user's response! After the user
-                // sees the explanation, try again to request the permission.
-
+            if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this, Manifest.permission.INTERNET)) {
+                Log.d("Rational", "Can you give me fucking permission or fucking uninstall it.");
+                Log.d("Permission", "Should show request permission rationale return true");
+                requestInternetPermission();
             }
             else {
-
-                // No explanation needed, we can request the permission.
-
-                ActivityCompat.requestPermissions(MainActivity.this,
-                        new String[]{Manifest.permission.READ_PHONE_STATE},
-                        MY_PERMISSIONS_REQUEST_READ_PHONE_STATE);
-
-                // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
-                // app-defined int constant. The callback method gets the
-                // result of the request.
+                requestInternetPermission();
             }
         }
         else {
-            getPhoneNumber();
+            Log.d("Internet", "Have internet permission");
         }
     }
 
+    // Create separate method for flexibility
+    private void requestInternetPermission() {
+        ActivityCompat.requestPermissions(MainActivity.this, new String[] {Manifest.permission.INTERNET}, Constant.INTERNET_ACCESS_RESULT);
+    }
+
+
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
-            case MY_PERMISSIONS_REQUEST_READ_PHONE_STATE: {
+            case Constant.INTERNET_ACCESS_RESULT: {
                 if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
                     // permission was granted, yay! do the
                     // calendar task you need to do.
-                    getPhoneNumber();
+                    InternetAccess = true;
                     Toast.makeText(this, "granted permission", Toast.LENGTH_LONG).show();
 
-                }
-                else {
+                } else {
                     Toast.makeText(this, "nope", Toast.LENGTH_LONG).show();
                     // permission denied, boo! Disable the
                     // functionality that depends on this permission.
                 }
-                return;
             }
-
-            // other 'switch' lines to check for other
-            // permissions this app might request
         }
     }
 
-    public String getPhoneNumber(){
-        TelephonyManager tMgr = (TelephonyManager)this.getSystemService(Context.TELEPHONY_SERVICE);
-        final String mPhoneNumber = tMgr.getLine1Number();
-        return mPhoneNumber;
+    private void sendRegisterRequest(Context context, final String username, final String password, final String androidId) {
+        RequestQueue queue = Volley.newRequestQueue(context);
+        StringRequest sr = new StringRequest(Request.Method.POST, Constant.REGISTER_URL, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                Log.d("http post", "response is " + response);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Log.d("http post", "error is " + error.getMessage() + " cause " + error.getCause().getMessage());
+            }
+        }){
+            @Override
+            protected Map<String,String> getParams() {
+                Map<String,String> params = new HashMap<>();
+                params.put("username", username);
+                params.put("password", password);
+                params.put("androidId", androidId);
+
+                return params;
+            }
+        };
+        queue.add(sr);
     }
-
-
 }
-
-
-
