@@ -22,20 +22,26 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.provider.Settings.Secure;
 
+import com.google.common.io.CharStreams;
+import com.google.gson.Gson;
 
-import com.android.volley.AuthFailureError;
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
-
-import org.apache.http.impl.client.HttpClientBuilder;
-
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.net.URLConnection;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity implements ActivityCompat.OnRequestPermissionsResultCallback {
@@ -66,6 +72,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         etPassR = (EditText) regis.findViewById(R.id.etPassR);
         butRegis = (Button) regis.findViewById(R.id.butRegis);
         butClearR = (Button) regis.findViewById(R.id.butClearR);
+        Button testbut = (Button) findViewById(R.id.testbut);
 
         // get sp with default name, this default name is shared across app
         sp = PreferenceManager.getDefaultSharedPreferences(this);
@@ -74,26 +81,30 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         String androidId = Secure.getString(getContentResolver(), Secure.ANDROID_ID);
         spEdit.putString(Constant.AndroidIdSpKey, androidId);
         spEdit.apply();
-        Log.d("Android Id", "Android Id is " + androidId);
 
         checkPermission();
+
+        // debug purpose only
+        testbut.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new sendRegisterAsync().execute(new RegisterInfo("aefaefefd", "123456", "SuperAdmin"));
+            }
+        });
 
         butLogin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 try {
                     //เช็คว่า ถ้าค่าว่างให้ใส่ใหม่ ถ้าไม่ว่างค่อยส่งไปยัง server
-                    if(etUser.getText().toString().equals(sp.getString(Constant.UsernameSpKey,"SuperAdmin"))&&etPass.getText().toString().equals(sp.getString(Constant.PasswordSpKey,"123456")))
-                    {
+                    if (etUser.getText().toString().equals(sp.getString(Constant.UsernameSpKey, "SuperAdmin")) && etPass.getText().toString().equals(sp.getString(Constant.PasswordSpKey, "123456"))) {
                         //แก้เก็บเฉพาะ รหัส นศ กับ เบอร์โทรเก็บไว้
                         login.dismiss();
+                    } else {
+                        Toast.makeText(MainActivity.this, "UserName or password Error", Toast.LENGTH_SHORT).show();
                     }
-                    else {
-                        Toast.makeText(MainActivity.this,"UserName or password Error",Toast.LENGTH_SHORT).show();
-                    }
-                }
-                catch(Exception e){
-                    Toast.makeText(MainActivity.this,"Error "+e.getMessage(),Toast.LENGTH_SHORT).show();
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "Error " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -109,19 +120,11 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
                         finish();
                     }
 
-                }
-                catch(Exception e){
-                    Toast.makeText(MainActivity.this,"Error "+e.getMessage(),Toast.LENGTH_SHORT).show();
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "Error " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             }
         });
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // Debug purpose
-        // sendRegisterRequest(this, "SuperAdmin", "123456", "555455545");
     }
 
 
@@ -149,7 +152,6 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         ActivityCompat.requestPermissions(MainActivity.this, new String[] {Manifest.permission.INTERNET}, Constant.INTERNET_ACCESS_RESULT);
     }
 
-
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
@@ -170,29 +172,125 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         }
     }
 
-    private void sendRegisterRequest(Context context, final String username, final String password, final String androidId) {
-        RequestQueue queue = Volley.newRequestQueue(context);
-        StringRequest sr = new StringRequest(Request.Method.POST, Constant.REGISTER_URL, new Response.Listener<String>() {
-            @Override
-            public void onResponse(String response) {
-                Log.d("http post", "response is " + response);
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                Log.d("http post", "error is " + error.getMessage() + " cause " + error.getCause().getMessage());
-            }
-        }){
-            @Override
-            protected Map<String,String> getParams() {
-                Map<String,String> params = new HashMap<>();
-                params.put("username", username);
-                params.put("password", password);
-                params.put("androidId", androidId);
+    private static class sendRegisterAsync extends AsyncTask<RegisterInfo, Void, String> {
 
-                return params;
+        @Override
+        protected String doInBackground(RegisterInfo... params) {
+            if (params[0] == null) {
+                throw new IllegalArgumentException("argument is null.");
             }
-        };
-        queue.add(sr);
+
+            if(android.os.Debug.isDebuggerConnected())
+                android.os.Debug.waitForDebugger();
+
+            RegisterInfo info = params[0];
+            HttpURLConnection urlConnection = null;
+
+            try {
+                Map<String, String> requestBody = new HashMap<>();
+                requestBody.put("username", info.getUsername());
+                requestBody.put("password", info.getPassword());
+                requestBody.put("androidId", info.getAndroidId());
+                byte[] bytesBody = getQuery(requestBody).getBytes("UTF-8");
+
+                urlConnection = (HttpURLConnection)new URL(Constant.REGISTER_URL).openConnection();
+                urlConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                urlConnection.setFixedLengthStreamingMode(bytesBody.length);
+                urlConnection.setDoOutput(true);
+                urlConnection.setDoInput(true);
+
+                OutputStream out = new BufferedOutputStream(urlConnection.getOutputStream());
+                out.write(bytesBody);
+                out.flush();
+                out.close();
+
+                InputStream in = new BufferedInputStream(urlConnection.getInputStream());
+
+                return CharStreams.toString(new InputStreamReader(in, "UTF-8"));
+            }
+            catch (IllegalStateException ill) {
+                Log.d("http post", "Connection already open");
+                return null;
+            }
+            catch (IOException io) {
+                io.printStackTrace();
+                Log.d("http post", "Error " + io.getMessage());
+                Log.d("http post", "Cause " + io.getCause());
+                return null;
+            }
+            finally {
+                if (urlConnection != null) {
+                    urlConnection.disconnect();
+                }
+            }
+        }
+
+        @Override
+        protected void onPostExecute(String jsonString) {
+            if (jsonString == null) {
+                return;
+            }
+            Gson gson = new Gson();
+            RegisterReturnStatus result = gson.fromJson(jsonString, RegisterReturnStatus.class);
+
+            if (result == null) {
+                Log.d("Register", "JSON string is null");
+                return;
+            }
+
+            Log.d("Register", result.getStatus());
+        }
+
+        private String getQuery(Map<String, String> map)
+        {
+            String output = null;
+            Uri.Builder builder = new Uri.Builder();
+
+            if (map != null) {
+                for (Map.Entry<String, String> entry : map.entrySet()) {
+                    builder.appendQueryParameter(entry.getKey(), entry.getValue());
+                }
+
+                output = builder.build().getEncodedQuery();
+            }
+
+            return output;
+        }
+    }
+
+    private static class RegisterInfo {
+        public RegisterInfo(String androidId, String password, String username) {
+            this.androidId = androidId;
+            this.password = password;
+            this.username = username;
+        }
+
+        public String getAndroidId() {
+            return androidId;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        private String username;
+        private String password;
+        private String androidId;
+    }
+
+    private static class RegisterReturnStatus {
+        private String status;
+
+        public RegisterReturnStatus(String status) {
+            this.status = status;
+        }
+
+        public String getStatus() {
+            return status;
+        }
     }
 }
