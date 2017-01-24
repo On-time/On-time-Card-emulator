@@ -47,9 +47,9 @@ import java.util.Map;
 public class MainActivity extends AppCompatActivity implements ActivityCompat.OnRequestPermissionsResultCallback {
     SharedPreferences sp;
     boolean InternetAccess = true;
-    Dialog login,regis;
+    Dialog login;
     EditText etUser,etPass,etUserR,etPassR;
-    Button butLogin,butClear,butRegis,butClearR;
+    Button butLogin,butClear;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,18 +60,10 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         login.setContentView(R.layout.login_layout);
         login.setTitle("Login");
         login.setCancelable(false);
-        regis = new Dialog(MainActivity.this);
-        regis.setContentView(R.layout.reges_layout);
-        regis.setTitle("Regiester");
-        regis.setCancelable(false);
         etUser = (EditText) login.findViewById(R.id.etUser);
         etPass = (EditText) login.findViewById(R.id.etPass);
         butLogin = (Button) login.findViewById(R.id.butLog);
         butClear = (Button) login.findViewById(R.id.butClear);
-        etUserR = (EditText) regis.findViewById(R.id.etUserR);
-        etPassR = (EditText) regis.findViewById(R.id.etPassR);
-        butRegis = (Button) regis.findViewById(R.id.butRegis);
-        butClearR = (Button) regis.findViewById(R.id.butClearR);
         Button testbut = (Button) findViewById(R.id.testbut);
 
         // get sp with default name, this default name is shared across app
@@ -83,6 +75,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         spEdit.apply();
 
         checkPermission();
+        onStart();
 
         // debug purpose only
         testbut.setOnClickListener(new View.OnClickListener() {
@@ -99,27 +92,11 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
                     //เช็คว่า ถ้าค่าว่างให้ใส่ใหม่ ถ้าไม่ว่างค่อยส่งไปยัง server
                     if (etUser.getText().toString().equals(sp.getString(Constant.UsernameSpKey, "SuperAdmin")) && etPass.getText().toString().equals(sp.getString(Constant.PasswordSpKey, "123456"))) {
                         //แก้เก็บเฉพาะ รหัส นศ กับ เบอร์โทรเก็บไว้
+                        sp.edit().putString("et_pr_sta","1");
                         login.dismiss();
                     } else {
                         Toast.makeText(MainActivity.this, "UserName or password Error", Toast.LENGTH_SHORT).show();
                     }
-                } catch (Exception e) {
-                    Toast.makeText(MainActivity.this, "Error " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
-        butRegis.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    spEdit.putString(Constant.UsernameSpKey, etUserR.getText().toString());
-                    spEdit.putString(Constant.PasswordSpKey, etPassR.getText().toString());
-                    spEdit.apply();
-
-                    if (!InternetAccess) {
-                        finish();
-                    }
-
                 } catch (Exception e) {
                     Toast.makeText(MainActivity.this, "Error " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 }
@@ -291,6 +268,11 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
 
         public String getStatus() {
             return status;
+        }
+    }
+    public  void onStart(){
+        if(sp.getString("et_pr_sta","0").equals("")){
+            login.show();
         }
     }
 }

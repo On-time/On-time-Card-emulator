@@ -4,16 +4,6 @@
     <EditTextPreference
         android:selectAllOnFocus="true"
         android:singleLine="true"
-        android:title="Student ID"
-        android:key="et_pr_ID" />
-    <EditTextPreference
-        android:selectAllOnFocus="true"
-        android:singleLine="true"
-        android:title="Pass"
-        android:key="et_pr_Pass" />
-    <EditTextPreference
-        android:selectAllOnFocus="true"
-        android:singleLine="true"
-        android:title="tel num"
-        android:key="edit_text_preference_1" />
+        android:title="Status"
+        android:key="et_pr_AI" />
 </PreferenceScreen>
