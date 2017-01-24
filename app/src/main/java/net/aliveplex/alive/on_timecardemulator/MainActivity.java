@@ -75,7 +75,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         spEdit.apply();
 
         checkPermission();
-        onStart();
+        LoginCheck();
 
         // debug purpose only
         testbut.setOnClickListener(new View.OnClickListener() {
@@ -270,9 +270,12 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
             return status;
         }
     }
-    public  void onStart(){
+
+    protected void LoginCheck() {
+        super.onStart();
         if(sp.getString("et_pr_sta","0").equals("")){
             login.show();
-        }
+    }
+
     }
 }
