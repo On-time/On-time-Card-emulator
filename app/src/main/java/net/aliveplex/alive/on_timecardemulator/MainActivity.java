@@ -92,7 +92,8 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
                     //เช็คว่า ถ้าค่าว่างให้ใส่ใหม่ ถ้าไม่ว่างค่อยส่งไปยัง server
                     if (etUser.getText().toString().equals(sp.getString(Constant.UsernameSpKey, "SuperAdmin")) && etPass.getText().toString().equals(sp.getString(Constant.PasswordSpKey, "123456"))) {
                         //แก้เก็บเฉพาะ รหัส นศ กับ เบอร์โทรเก็บไว้
-                        sp.edit().putString("et_pr_sta","1");
+                        spEdit.putString("et_pr_sta","1");
+                        spEdit.apply();
                         login.dismiss();
                     } else {
                         Toast.makeText(MainActivity.this, "UserName or password Error", Toast.LENGTH_SHORT).show();
@@ -273,7 +274,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
 
     protected void LoginCheck() {
         super.onStart();
-        if(sp.getString("et_pr_sta","0").equals("")){
+        if(sp.getString("et_pr_sta","0").equals("0")){
             login.show();
     }
 
