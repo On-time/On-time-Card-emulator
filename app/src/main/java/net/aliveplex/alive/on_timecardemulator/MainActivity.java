@@ -8,17 +8,14 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.preference.PreferenceManager;
-import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
 import android.widget.Toast;
 import android.provider.Settings.Secure;
 
@@ -27,21 +24,13 @@ import com.google.gson.Gson;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
-import java.net.URLEncoder;
-import java.nio.charset.Charset;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity implements ActivityCompat.OnRequestPermissionsResultCallback {
@@ -70,9 +59,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         sp = PreferenceManager.getDefaultSharedPreferences(this);
         final SharedPreferences.Editor spEdit = sp.edit();
 
-        String androidId = Secure.getString(getContentResolver(), Secure.ANDROID_ID);
-        spEdit.putString(Constant.AndroidIdSpKey, androidId);
-        spEdit.apply();
+        final String androidId = Secure.getString(getContentResolver(), Secure.ANDROID_ID);
 
         checkPermission();
         LoginCheck();
@@ -81,7 +68,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         testbut.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                new sendRegisterAsync().execute(new RegisterInfo("aefaefefd", "123456", "SuperAdmin"));
+                new SendRegisterAsync(MainActivity.this).execute(new RegisterInfo("SuperAdmin", "123456", "aefaefefd"));
             }
         });
 
@@ -89,14 +76,15 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
             @Override
             public void onClick(View v) {
                 try {
-                    //เช็คว่า ถ้าค่าว่างให้ใส่ใหม่ ถ้าไม่ว่างค่อยส่งไปยัง server
-                    if (etUser.getText().toString().equals(sp.getString(Constant.UsernameSpKey, "SuperAdmin")) && etPass.getText().toString().equals(sp.getString(Constant.PasswordSpKey, "123456"))) {
-                        //แก้เก็บเฉพาะ รหัส นศ กับ เบอร์โทรเก็บไว้
-                        spEdit.putString(Constant.FIRSTTIMELOGIN,"1");
-                        spEdit.apply();
+                    String username = etUser.getText().toString();
+                    String password = etPass.getText().toString();
+
+                    if (!isEmpty(username) && !isEmpty(password)) {
+                        SendRegisterAsync regisTask = new SendRegisterAsync(MainActivity.this);
+                        regisTask.execute(new RegisterInfo(username, password, androidId));
                         login.dismiss();
                     } else {
-                        Toast.makeText(MainActivity.this, "UserName or password Error", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "username or password empty", Toast.LENGTH_SHORT).show();
                     }
                 } catch (Exception e) {
                     Toast.makeText(MainActivity.this, "Error " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -130,6 +118,16 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         ActivityCompat.requestPermissions(MainActivity.this, new String[] {Manifest.permission.INTERNET}, Constant.INTERNET_ACCESS_RESULT);
     }
 
+    protected void LoginCheck() {
+        if(sp.getInt(Constant.FIRSTTIMELOGIN, 0) == 0){
+            login.show();
+        }
+    }
+
+    private boolean isEmpty(String string) {
+        return string.trim().length() == 0;
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
@@ -150,7 +148,13 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         }
     }
 
-    private static class sendRegisterAsync extends AsyncTask<RegisterInfo, Void, String> {
+    private static class SendRegisterAsync extends AsyncTask<RegisterInfo, String, String> {
+        private Context _context;
+        private RegisterInfo _regisInfo;
+
+        public SendRegisterAsync(Context context) {
+            _context = context;
+        }
 
         @Override
         protected String doInBackground(RegisterInfo... params) {
@@ -162,6 +166,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
                 android.os.Debug.waitForDebugger();
 
             RegisterInfo info = params[0];
+            _regisInfo = info;
             HttpURLConnection urlConnection = null;
 
             try {
@@ -187,13 +192,12 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
                 return CharStreams.toString(new InputStreamReader(in, "UTF-8"));
             }
             catch (IllegalStateException ill) {
-                Log.d("http post", "Connection already open");
+                publishProgress("Error: " + ill.getMessage());
                 return null;
             }
             catch (IOException io) {
-                io.printStackTrace();
-                Log.d("http post", "Error " + io.getMessage());
-                Log.d("http post", "Cause " + io.getCause());
+                publishProgress("Error: " + io.getMessage());
+
                 return null;
             }
             finally {
@@ -212,11 +216,36 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
             RegisterReturnStatus result = gson.fromJson(jsonString, RegisterReturnStatus.class);
 
             if (result == null) {
-                Log.d("Register", "JSON string is null");
+                Toast.makeText(_context, "Error: can't process result", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            Log.d("Register", result.getStatus());
+            if (result.getStatus().equals("register student completed")) {
+                SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(_context);
+                SharedPreferences.Editor spEditor = sp.edit();
+
+                spEditor.putString(Constant.UsernameSpKey, _regisInfo.getUsername());
+                spEditor.putString(Constant.AndroidIdSpKey, _regisInfo.getAndroidId());
+                spEditor.putInt(Constant.FIRSTTIMELOGIN, 1);
+                spEditor.apply();
+                Toast.makeText(_context, "register completed", Toast.LENGTH_SHORT).show();
+            }
+            else if (result.getStatus().equals("username or password invalid")) {
+                Toast.makeText(_context, "username or password invalid", Toast.LENGTH_SHORT).show();
+            }
+            else {
+                Toast.makeText(_context, "student not found", Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        @Override
+        protected void onProgressUpdate(String... values) {
+            if (values.length > 0) {
+                Toast.makeText(_context, values[0], Toast.LENGTH_SHORT).show();
+            }
+            else {
+                Toast.makeText(_context, "Error when made request", Toast.LENGTH_SHORT).show();
+            }
         }
 
         private String getQuery(Map<String, String> map)
@@ -237,7 +266,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
     }
 
     private static class RegisterInfo {
-        public RegisterInfo(String androidId, String password, String username) {
+        public RegisterInfo(String username, String password, String androidId) {
             this.androidId = androidId;
             this.password = password;
             this.username = username;
@@ -269,12 +298,6 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
 
         public String getStatus() {
             return status;
-        }
-    }
-
-    protected void LoginCheck() {
-        if(sp.getString(Constant.FIRSTTIMELOGIN,"0").equals("0")){
-            login.show();
         }
     }
 }
