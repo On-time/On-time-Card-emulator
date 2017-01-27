@@ -3,6 +3,7 @@ package net.aliveplex.alive.on_timecardemulator;
 import android.Manifest;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -37,7 +38,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
     SharedPreferences sp;
     boolean InternetAccess = true;
     Dialog login;
-    EditText etUser,etPass,etUserR,etPassR;
+    EditText etUser,etPass;
     Button butLogin,butClear;
 
     @Override
@@ -48,7 +49,7 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         login = new Dialog(MainActivity.this);
         login.setContentView(R.layout.login_layout);
         login.setTitle("Login");
-        login.setCancelable(false);
+        login.setCancelable(true);
         etUser = (EditText) login.findViewById(R.id.etUser);
         etPass = (EditText) login.findViewById(R.id.etPass);
         butLogin = (Button) login.findViewById(R.id.butLog);
@@ -89,6 +90,20 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
                 } catch (Exception e) {
                     Toast.makeText(MainActivity.this, "Error " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 }
+            }
+        });
+        butClear.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                    etUser.setText("");
+                    etPass.setText("");
+            }
+        });
+
+        login.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialogInterface) {
+                finish();
             }
         });
     }
