@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 
 /**
  * Created by Aliveplex on 16/11/2559.
@@ -23,7 +24,7 @@ public class MyHostApduService  extends HostApduService {
                 (byte)0xF0, 0x00, 0x00, 0x0E, (byte)0x85
         };
 
-        if (commandApdu == selectAID) {
+        if (Arrays.equals(commandApdu, selectAID)) {
             return new byte[] { (byte)0x90 };
         }
         // if passed through above, it not select command, let process it as our protocal
