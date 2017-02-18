@@ -54,7 +54,6 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
         etPass = (EditText) login.findViewById(R.id.etPass);
         butLogin = (Button) login.findViewById(R.id.butLog);
         butClear = (Button) login.findViewById(R.id.butClear);
-        Button testbut = (Button) findViewById(R.id.testbut);
 
         // get sp with default name, this default name is shared across app
         sp = PreferenceManager.getDefaultSharedPreferences(this);
@@ -64,14 +63,6 @@ public class MainActivity extends AppCompatActivity implements ActivityCompat.On
 
         checkPermission();
         LoginCheck();
-
-        // debug purpose only
-        testbut.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                new SendRegisterAsync(MainActivity.this).execute(new RegisterInfo("SuperAdmin", "123456", "aefaefefd"));
-            }
-        });
 
         butLogin.setOnClickListener(new View.OnClickListener() {
             @Override
