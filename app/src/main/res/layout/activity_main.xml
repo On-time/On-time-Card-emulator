@@ -11,7 +11,7 @@
     tools:context="net.aliveplex.alive.on_timecardemulator.MainActivity">
 
     <TextView
-        android:text="Student card Emulator"
+        android:text="@string/welcome_message"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/ggwp"
